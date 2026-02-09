@@ -1,0 +1,9 @@
+name: web-trading
+version: 0.0.0
+http:
+  whitelist:
+    # Yahoo Finance API endpoints
+    - query1.finance.yahoo.com
+    - query2.finance.yahoo.com
+    - finance.yahoo.com
+    - *.yahoo.com
