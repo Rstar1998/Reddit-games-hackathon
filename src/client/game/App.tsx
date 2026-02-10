@@ -115,8 +115,7 @@ export const App = () => {
           {/* Portfolio Card */}
           <div className="bg-slate-900/50 border border-slate-800 rounded-xl p-4 md:p-6 shadow-xl backdrop-blur-sm animate-slide-in">
             <h2 className="text-slate-400 text-xs font-bold uppercase tracking-wider mb-1">Total Net Worth</h2>
-            <div className={`text-3xl md:text-4xl font-black mb-1 number-transition ${dayGain >= 0 ? 'text-green-400 glow-green' : 'text-red-400 glow-red'
-              }`}>
+            <div className={`text-3xl md:text-4xl font-black mb-1 number-transition ${dayGain >= 0 ? 'text-green-400' : 'text-red-400'}`}>
               ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
             <div className={`text-sm font-bold flex items-center gap-1 ${dayGain >= 0 ? 'text-green-500' : 'text-red-500'}`}>
@@ -137,16 +136,12 @@ export const App = () => {
             </div>
           </div>
 
-          {/* Trade Execution Card */}
-          <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg relative overflow-hidden">
-            {!selectedStock ? (
-              <div className="flex flex-col items-center justify-center h-48 text-slate-500 text-center p-4">
-                <div className="text-4xl mb-2 opacity-20">📊</div>
-                <p className="text-sm">Select a ticker from the market list to trade.</p>
-              </div>
-            ) : (
-              <>
-                <div className="flex justify-between items-start mb-6">
+          {/* Trading Modal Popup */}
+          {selectedStock && (
+            <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in" onClick={() => setSelectedStock(null)}>
+              <div className="bg-slate-900 w-full max-w-md rounded-2xl border border-slate-800 shadow-2xl animate-slide-in" onClick={(e) => e.stopPropagation()}>
+                {/* Header */}
+                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-gradient-to-r from-slate-900 to-slate-800">
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-2xl font-bold text-white">{selectedStock.symbol}</h2>
@@ -154,15 +149,25 @@ export const App = () => {
                     </div>
                     <div className="text-slate-400 text-xs">{selectedStock.name}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="text-xl font-mono font-bold text-white">${selectedStock.price.toFixed(2)}</div>
-                    <div className={`text-xs font-bold ${selectedStock.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                  <button
+                    onClick={() => setSelectedStock(null)}
+                    className="text-slate-400 hover:text-white bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 hover:rotate-90"
+                  >
+                    ×
+                  </button>
+                </div>
+
+                {/* Content */}
+                <div className="p-4 space-y-4">
+                  {/* Price Display */}
+                  <div className="text-center py-4 bg-slate-950/50 rounded-lg border border-slate-800">
+                    <div className="text-3xl font-mono font-bold text-white">${selectedStock.price.toFixed(2)}</div>
+                    <div className={`text-sm font-bold mt-1 ${selectedStock.changePercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                       {selectedStock.changePercent >= 0 ? '+' : ''}{selectedStock.changePercent.toFixed(2)}%
                     </div>
                   </div>
-                </div>
 
-                <div className="space-y-4">
+                  {/* Buy/Sell Tabs */}
                   <div className="flex bg-slate-950 p-1 rounded-lg border border-slate-800">
                     <button
                       onClick={() => setTradeType('buy')}
@@ -174,6 +179,7 @@ export const App = () => {
                     >SELL</button>
                   </div>
 
+                  {/* Quantity Input */}
                   <div>
                     <div className="flex justify-between text-xs text-slate-400 mb-1">
                       <label>Quantity</label>
@@ -248,6 +254,7 @@ export const App = () => {
                     </div>
                   </div>
 
+                  {/* Total Display */}
                   <div className="bg-slate-950/50 rounded-lg p-3 border border-slate-800">
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-slate-400">Est. Total</span>
@@ -261,6 +268,7 @@ export const App = () => {
                     )}
                   </div>
 
+                  {/* Trade Button */}
                   <button
                     onClick={handleTrade}
                     disabled={
@@ -276,6 +284,7 @@ export const App = () => {
                     {tradeType === 'buy' ? '🚀 BUY' : '💰 SELL'}
                   </button>
 
+                  {/* Trade Message */}
                   {tradeMessage && (
                     <div className={`text-center text-sm font-bold py-2 px-3 rounded-lg animate-fade-in ${tradeMessage.includes('✅') ? 'bg-green-900/30 text-green-400 border border-green-700' :
                       tradeMessage.includes('❌') ? 'bg-red-900/30 text-red-400 border border-red-700' :
@@ -285,9 +294,9 @@ export const App = () => {
                     </div>
                   )}
                 </div>
-              </>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Right Column: Market List (Mobile: Bottom) */}
@@ -300,8 +309,8 @@ export const App = () => {
                   key={stock.symbol}
                   onClick={() => setSelectedStock(stock)}
                   className={`flex justify-between items-center p-3 md:p-4 rounded-xl cursor-pointer transition-all border min-h-[60px] md:min-h-0 ${selectedStock?.symbol === stock.symbol
-                      ? 'bg-yellow-900/20 border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.15)] scale-[1.02]'
-                      : 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/50 hover:border-slate-700 hover:scale-[1.01]'
+                    ? 'bg-yellow-900/20 border-yellow-500/50 shadow-[0_0_15px_rgba(234,179,8,0.15)] scale-[1.02]'
+                    : 'bg-slate-950/50 border-slate-800 hover:bg-slate-800/50 hover:border-slate-700 hover:scale-[1.01]'
                     }`}
                 >
                   <div className="flex-1">
@@ -309,9 +318,9 @@ export const App = () => {
                       <div className="font-bold text-white text-base md:text-sm">{stock.symbol}</div>
                       {/* Trend Indicator */}
                       <span className={`text-xs ${stock.changePercent >= 2 ? 'text-green-400' :
-                          stock.changePercent >= 0 ? 'text-green-500/70' :
-                            stock.changePercent <= -2 ? 'text-red-400' :
-                              'text-red-500/70'
+                        stock.changePercent >= 0 ? 'text-green-500/70' :
+                          stock.changePercent <= -2 ? 'text-red-400' :
+                            'text-red-500/70'
                         }`}>
                         {stock.changePercent >= 0 ? '↗' : '↘'}
                       </span>

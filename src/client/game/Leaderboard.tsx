@@ -21,19 +21,32 @@ export const Leaderboard = ({ onClose, currentUserId }: { onClose: () => void; c
     const [selectedUser, setSelectedUser] = useState<string | null>(null); // Username for display
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
+    const [showPrevious, setShowPrevious] = useState(false); // Toggle for previous winners
 
     useEffect(() => {
         const fetchLeaderboard = () => {
-            api.getLeaderboard().then(data => {
-                setEntries(data.leaderboard);
-                setLoading(false);
-            }).catch(console.error);
+            if (showPrevious) {
+                // Fetch previous day winners
+                fetch('/api/leaderboard/previous')
+                    .then(res => res.json())
+                    .then(data => {
+                        setEntries(data.leaderboard);
+                        setLoading(false);
+                    })
+                    .catch(console.error);
+            } else {
+                // Fetch current leaderboard
+                api.getLeaderboard().then(data => {
+                    setEntries(data.leaderboard);
+                    setLoading(false);
+                }).catch(console.error);
+            }
         };
 
         fetchLeaderboard();
         const interval = setInterval(fetchLeaderboard, 3000); // Poll every 3s
         return () => clearInterval(interval);
-    }, []);
+    }, [showPrevious]);
 
     const handleUserClick = async (userId: string, username: string) => {
         setSelectedUser(username);
@@ -54,30 +67,40 @@ export const Leaderboard = ({ onClose, currentUserId }: { onClose: () => void; c
     return (
         <div className="fixed inset-0 bg-slate-950/90 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-fade-in">
             <div className="bg-slate-900 w-full max-w-lg rounded-2xl border border-slate-800 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-slide-in">
-                <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-gradient-to-r from-slate-900 to-slate-800">
-                    <h2 className="text-xl font-black text-yellow-500 flex items-center gap-2">
-                        {selectedUser ? (
-                            <>
-                                <button
-                                    onClick={() => setSelectedUser(null)}
-                                    className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-lg transition-all hover:scale-110"
-                                >
-                                    ←
-                                </button>
-                                <span className="truncate max-w-[200px]">{selectedUser}</span>
-                            </>
-                        ) : (
-                            <>
-                                <span>🏆 Leaderboard</span>
-                            </>
-                        )}
-                    </h2>
-                    <button
-                        onClick={onClose}
-                        className="text-slate-400 hover:text-white bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 hover:rotate-90"
-                    >
-                        &times;
-                    </button>
+                <div className="p-4 border-b border-slate-800 bg-gradient-to-r from-slate-900 to-slate-800">
+                    <div className="flex justify-between items-center mb-3">
+                        <h2 className="text-xl font-black text-yellow-500 flex items-center gap-2">
+                            {selectedUser ? (
+                                <>
+                                    <button
+                                        onClick={() => setSelectedUser(null)}
+                                        className="text-slate-400 hover:text-white bg-slate-800 p-1.5 rounded-lg transition-all hover:scale-110"
+                                    >
+                                        ←
+                                    </button>
+                                    <span className="truncate max-w-[200px]">{selectedUser}</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span>🏆 {showPrevious ? 'Previous Winners' : 'Leaderboard'}</span>
+                                </>
+                            )}
+                        </h2>
+                        <button
+                            onClick={onClose}
+                            className="text-slate-400 hover:text-white bg-slate-800 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 hover:rotate-90"
+                        >
+                            &times;
+                        </button>
+                    </div>
+                    {!selectedUser && (
+                        <button
+                            onClick={() => setShowPrevious(!showPrevious)}
+                            className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm py-2 px-4 rounded-lg transition-all border border-slate-700 flex items-center justify-center gap-2"
+                        >
+                            {showPrevious ? '📊 Current Leaderboard' : '🏅 Previous Winners'}
+                        </button>
+                    )}
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-2 md:p-4 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">

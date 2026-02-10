@@ -58,6 +58,11 @@ export class GameLogic {
             portfolio.lastResetDate = today;
             portfolio.lastUpdated = Date.now();
             await this.redis.set(key, JSON.stringify(portfolio));
+
+            // Clear trade history on daily reset
+            const historyKey = `user:${userId}:history`;
+            await this.redis.del(historyKey);
+            console.log('[GAME_LOGIC] Daily reset: Portfolio and history cleared for user:', userId);
         }
 
         return portfolio;
@@ -206,6 +211,49 @@ export class GameLogic {
             return leaderboard;
         } catch (e) {
             console.error('Failed to get leaderboard', e);
+            return [];
+        }
+    }
+
+    /**
+     * Save previous day's winners (top 10) - should be called at 11:59 PM ET
+     */
+    async savePreviousDayWinners(): Promise<void> {
+        try {
+            const yesterday = new Date();
+            yesterday.setDate(yesterday.getDate() - 1);
+            const dateKey = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD
+
+            // Get current top 10
+            const winners = await this.getLeaderboard(10);
+
+            // Save to Redis with date key
+            await this.redis.set(`leaderboard:history:${dateKey}`, JSON.stringify(winners));
+            console.log(`[GAME_LOGIC] Saved previous day winners for ${dateKey}`);
+        } catch (e) {
+            console.error('Failed to save previous day winners', e);
+        }
+    }
+
+    /**
+     * Get previous day's winners
+     */
+    async getPreviousDayWinners(daysAgo: number = 1): Promise<{ userId: string; username: string; value: number; date: string }[]> {
+        try {
+            const targetDate = new Date();
+            targetDate.setDate(targetDate.getDate() - daysAgo);
+            const dateKey = targetDate.toISOString().split('T')[0]; // YYYY-MM-DD
+
+            const data = await this.redis.get(`leaderboard:history:${dateKey}`);
+            if (!data) {
+                return [];
+            }
+
+            const winners = JSON.parse(data);
+            // Add date to each winner
+            return winners.map((w: any) => ({ ...w, date: dateKey }));
+        } catch (e) {
+            console.error('Failed to get previous day winners', e);
             return [];
         }
     }

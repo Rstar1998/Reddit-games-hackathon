@@ -192,19 +192,17 @@ router.post('/api/trade', async (req, res) => {
     return;
   }
 
-  // Enforce Market Hours / Weekend Rules
-  const isWeekend = stockService.isWeekend();
+
+  // Enforce Market Hours for Stocks (Crypto is 24/7)
   const isCrypto = ticker.endsWith('-USD');
+  const isMarketOpen = stockService.isMarketOpen();
 
-  if (isWeekend && !isCrypto) {
-    res.status(400).json({ success: false, message: 'Market Closed! Only Crypto trades on weekends.' });
+  // Only enforce market hours for stocks, not crypto
+  if (!isCrypto && !isMarketOpen) {
+    res.status(400).json({ success: false, message: 'Stock Market Closed! Market hours: Mon-Fri 9:30 AM - 4 PM ET. Try crypto instead!' });
     return;
   }
 
-  if (!isWeekend && isCrypto) {
-    res.status(400).json({ success: false, message: 'Crypto Market Closed! Only Stocks trade on weekdays.' });
-    return;
-  }
 
   let result;
   if (type === 'buy') {
@@ -249,6 +247,12 @@ router.post('/api/trade', async (req, res) => {
 router.get('/api/leaderboard', async (_req, res) => {
   const leaderboard = await gameLogic.getLeaderboard(10);
   res.json({ leaderboard });
+});
+
+router.get('/api/leaderboard/previous', async (req, res) => {
+  const daysAgo = parseInt(req.query.daysAgo as string) || 1;
+  const previousWinners = await gameLogic.getPreviousDayWinners(daysAgo);
+  res.json({ leaderboard: previousWinners });
 });
 
 // Use router middleware

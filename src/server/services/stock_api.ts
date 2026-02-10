@@ -42,15 +42,39 @@ export class StockService {
     }
 
     /**
+     * Check if NYSE is currently open (9:30 AM - 4:00 PM ET, Monday-Friday)
+     */
+    isMarketOpen(): boolean {
+        const etDateString = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+        const etDate = new Date(etDateString);
+        const day = etDate.getDay();
+        const hour = etDate.getHours();
+        const minute = etDate.getMinutes();
+
+        // Weekend - market closed
+        if (day === 0 || day === 6) return false;
+
+        // Before 9:30 AM
+        if (hour < 9 || (hour === 9 && minute < 30)) return false;
+
+        // After 4:00 PM (16:00)
+        if (hour >= 16) return false;
+
+        return true;
+    }
+
+    /**
      * Fetches prices for all cached meme stocks and/or crypto
-     * In a real app, we would cache this in Redis(Devvit KV Store)
+     * Returns stocks during market hours (9:30 AM - 4 PM ET Mon-Fri)
+     * Returns crypto 24/7 when market is closed
      */
     async getMemeStocks(type: 'stocks' | 'crypto' | 'all' | 'auto' = 'auto'): Promise<StockData[]> {
         let tickers: string[] = [];
 
         let requestType = type;
         if (requestType === 'auto') {
-            requestType = this.isWeekend() ? 'crypto' : 'stocks';
+            // Show stocks during market hours, crypto 24/7 when market closed
+            requestType = this.isMarketOpen() ? 'stocks' : 'crypto';
         }
 
         if (requestType === 'stocks' || requestType === 'all') {
