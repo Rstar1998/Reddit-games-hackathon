@@ -4,8 +4,38 @@ import { api } from '../api';
 import { StockData, Portfolio } from '../../shared/types/models';
 import { Leaderboard } from './Leaderboard';
 
+// Price Display Component with Flash Animation
+const PriceDisplay = ({ price }: { price: number }) => {
+  const [prevPrice, setPrevPrice] = useState(price);
+  const [flash, setFlash] = useState<'green' | 'red' | null>(null);
+
+  useEffect(() => {
+    if (price > prevPrice) {
+      setFlash('green');
+      setPrevPrice(price);
+    } else if (price < prevPrice) {
+      setFlash('red');
+      setPrevPrice(price);
+    }
+
+    const timer = setTimeout(() => setFlash(null), 1000);
+    return () => clearTimeout(timer);
+  }, [price]);
+
+  return (
+    <div className={`font-mono font-bold text-base md:text-sm transition-all duration-300 px-2 rounded ${flash === 'green' ? 'flash-green' :
+      flash === 'red' ? 'flash-red' :
+        'text-white'
+      }`}>
+      ${price.toFixed(2)}
+    </div>
+  );
+};
+
 export const App = () => {
   const [stocks, setStocks] = useState<StockData[]>([]);
+  // ... rest of App component ...
+
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
@@ -22,6 +52,7 @@ export const App = () => {
         api.getStocks(),
         api.getPortfolio()
       ]);
+      console.log('[FRONTEND] Received stocks:', stocksRes.stocks.length, 'First:', stocksRes.stocks[0]?.symbol, '@', stocksRes.stocks[0]?.price);
       setStocks(stocksRes.stocks);
       setPortfolio(portfolioRes.portfolio);
       if (portfolioRes.totalValue) setTotalValue(portfolioRes.totalValue);
@@ -35,7 +66,7 @@ export const App = () => {
 
   useEffect(() => {
     refreshData();
-    const interval = setInterval(refreshData, 3000); // Poll every 3s
+    const interval = setInterval(refreshData, 2000); // Poll every 2s
     return () => clearInterval(interval);
   }, []);
 
@@ -47,6 +78,10 @@ export const App = () => {
       if (res.success) {
         setTradeMessage(`✅ ${res.message}`);
         setPortfolio(res.portfolio || null);
+
+        // Refresh all data immediately after successful trade
+        await refreshData();
+
         // Auto-close after success
         setTimeout(() => {
           setSelectedStock(null);
@@ -62,6 +97,18 @@ export const App = () => {
       setTimeout(() => setTradeMessage(''), 3000);
     }
   };
+
+  // Update selectedStock when stocks array changes (keeps modal prices fresh)
+  useEffect(() => {
+    console.log('[FRONTEND] stocks state changed, length:', stocks.length);
+    if (selectedStock && stocks.length > 0) {
+      const updatedStock = stocks.find(s => s.symbol === selectedStock.symbol);
+      if (updatedStock) {
+        console.log('[FRONTEND] Updating selectedStock:', updatedStock.symbol, '@', updatedStock.price);
+        setSelectedStock(updatedStock);
+      }
+    }
+  }, [stocks]);
 
   if (loading && !portfolio) return <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">🚀 Loading WSB Terminal...</div>;
 
@@ -93,7 +140,13 @@ export const App = () => {
             <div className="text-[10px] md:text-xs font-bold tracking-widest mt-1 uppercase opacity-80">
               {isWeekend ?
                 <span className="text-blue-400">🌙 Weekend Filter: Crypto Only</span> :
-                <span className="text-green-400">☀ Weekday Market: Stocks Active</span>
+                <span className="text-green-400 flex items-center gap-1">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                  </span>
+                  Live Market Data
+                </span>
               }
             </div>
           </div>
@@ -333,7 +386,7 @@ export const App = () => {
                     )}
                   </div>
                   <div className="text-right ml-2">
-                    <div className="font-mono font-bold text-white text-base md:text-sm">${stock.price.toFixed(2)}</div>
+                    <PriceDisplay price={stock.price} />
                     <div className={`text-xs font-bold flex items-center justify-end gap-1 ${stock.changePercent >= 0 ? 'text-green-400' : 'text-red-400'
                       }`}>
                       <span>{stock.changePercent >= 0 ? '▲' : '▼'}</span>

@@ -4,12 +4,12 @@ import { StockData } from '../shared/types/models';
 
 export class ApiClient {
     async getStocks(type: 'stocks' | 'crypto' | 'all' | 'auto' = 'auto'): Promise<{ stocks: StockData[] }> {
-        const res = await fetch(`/api/stocks?type=${type}`);
+        const res = await fetch(`/api/stocks?type=${type}&_t=${Date.now()}`);
         return res.json();
     }
 
     async getPortfolio(): Promise<PortfolioResponse> {
-        const res = await fetch('/api/portfolio');
+        const res = await fetch(`/api/portfolio?_t=${Date.now()}`);
         return res.json();
     }
 

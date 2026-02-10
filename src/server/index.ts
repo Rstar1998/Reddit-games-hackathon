@@ -125,7 +125,9 @@ router.get('/api/stocks', async (req, res) => {
   const validTypes = ['stocks', 'crypto', 'all', 'auto'];
   const requestType = validTypes.includes(type) ? type : 'auto';
 
+  console.log('[API /stocks] Request received, type:', requestType);
   const stocks = await stockService.getMemeStocks(requestType);
+  console.log('[API /stocks] Returning', stocks.length, 'stocks. First stock:', stocks[0]?.symbol, '@', stocks[0]?.price);
   res.json({ stocks });
 });
 
@@ -135,7 +137,9 @@ router.get('/api/portfolio', async (_req, res) => {
     res.status(401).json({ status: 'error', message: 'Unauthorized' });
     return;
   }
+  console.log('[API /portfolio] Request for userId:', userId);
   const portfolio = await gameLogic.getPortfolio(userId);
+  console.log('[API /portfolio] Portfolio cash:', portfolio.cash, 'assets:', Object.keys(portfolio.assets).length);
 
   // Sync Leaderboard & Calculate Total Value
   let totalValue = portfolio.cash;
@@ -146,6 +150,7 @@ router.get('/api/portfolio', async (_req, res) => {
       priceMap[s.symbol] = s.price;
     }
     totalValue = gameLogic.calculateTotalValue(portfolio, priceMap);
+    console.log('[API /portfolio] Total value calculated:', totalValue);
 
     // Update leaderboard in background to not block response too long? 
     // Actually we already awaited the stocks, so the update is fast (Redis).

@@ -28,7 +28,7 @@ const FALLBACK_PRICES: Record<string, number> = {
 
 export class StockService {
     private cache = new Map<string, { price: number; timestamp: number; data: StockData }>();
-    private readonly CACHE_TTL = 5000; // 5 seconds
+    private readonly CACHE_TTL = 2000; // 2 seconds (matches frontend polling)
 
     /**
      * Helper to check if it's currently a weekend (Saturday or Sunday) in Eastern Time (ET)
@@ -92,8 +92,10 @@ export class StockService {
         // Check Cache
         const cached = this.cache.get(symbol);
         if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
+            console.log(`[STOCK_API] Cache HIT for ${symbol} @ $${cached.data.price.toFixed(2)}`);
             return cached.data;
         }
+        console.log(`[STOCK_API] Cache MISS for ${symbol}, fetching new data...`);
 
         try {
             // Check if symbol is valid (in our lists)
@@ -102,6 +104,7 @@ export class StockService {
             }
 
             const quote = await yahooFinance.quote(symbol) as any;
+            console.log(`[STOCK_API] Yahoo response for ${symbol}:`, quote ? 'SUCCESS' : 'NULL', quote?.regularMarketPrice);
             if (!quote) throw new Error('No quote data');
 
             const data = {
@@ -117,21 +120,39 @@ export class StockService {
         } catch (error) {
             console.warn(`API Error for ${symbol}, using fallback:`, error instanceof Error ? error.message : error);
 
-            // Return fallback data
+            // Return fallback data with realistic tick-based pricing (like Robinhood)
             const fallbackPrice = FALLBACK_PRICES[symbol] || 100.00;
-            // Add slight randomness to make it feel "live" (+/- 1%)
-            const variation = (Math.random() * 0.02) - 0.01;
-            const dynamicPrice = fallbackPrice * (1 + variation);
+
+            // Simulate realistic market ticks - small random changes to last decimals
+            // For crypto: vary by $0.01 to $5 depending on price
+            // For stocks: vary by $0.01 to $1
+            let tickSize: number;
+            if (symbol.includes('-USD')) {
+                // Crypto - larger tick sizes
+                if (fallbackPrice > 10000) tickSize = 5;      // BTC: ±$5
+                else if (fallbackPrice > 1000) tickSize = 2;  // ETH: ±$2
+                else if (fallbackPrice > 10) tickSize = 0.5;  // SOL: ±$0.50
+                else tickSize = 0.001;                        // DOGE/SHIB: ±$0.001
+            } else {
+                // Stocks - smaller tick sizes
+                if (fallbackPrice > 500) tickSize = 1;        // High price stocks: ±$1
+                else if (fallbackPrice > 100) tickSize = 0.5; // Mid price: ±$0.50
+                else tickSize = 0.1;                          // Low price: ±$0.10
+            }
+
+            const tickVariation = (Math.random() * 2 - 1) * tickSize; // Random tick up or down
+            const dynamicPrice = fallbackPrice + tickVariation;
+
+            console.log(`[STOCK_API] Fallback for ${symbol}: base=$${fallbackPrice}, tick=${tickVariation.toFixed(4)}, final=$${dynamicPrice.toFixed(2)}`);
 
             const fallbackData = {
                 symbol: symbol,
                 price: dynamicPrice,
-                changePercent: (Math.random() * 5) - 2.5, // Random change between -2.5% and +2.5%
+                changePercent: (Math.random() * 6) - 3, // Random change between -3% and +3%
                 name: symbol,
             };
 
-            // Cache fallback data too (short TTL? maybe 2s?)
-            // For now, let's cache it normally to avoid spamming logs if API is down
+            // Cache fallback data with shorter TTL (2s) for more frequent updates
             this.cache.set(symbol, { price: dynamicPrice, timestamp: Date.now(), data: fallbackData });
             return fallbackData;
         }
