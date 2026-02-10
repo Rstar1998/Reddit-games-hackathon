@@ -73,8 +73,8 @@ export class StockService {
 
         let requestType = type;
         if (requestType === 'auto') {
-            // Show stocks during market hours, crypto 24/7 when market closed
-            requestType = this.isMarketOpen() ? 'stocks' : 'crypto';
+            // Show EVERYTHING 24/7. We filter fetching logic based on market hours internally.
+            requestType = 'all';
         }
 
         if (requestType === 'stocks' || requestType === 'all') {
@@ -89,13 +89,29 @@ export class StockService {
     }
 
     async getStockPrice(symbol: string): Promise<StockData | null> {
-        // Check Cache
+        // Dynamic TTL Logic
+        let currentTTL = this.CACHE_TTL; // Default 2s
+        const isCrypto = symbol.includes('-USD');
+
+        if (!isCrypto && !this.isMarketOpen()) {
+            // If it's a Stock and Market is CLOSED -> Cache for 1 hour
+            // This prevents spamming Yahoo Finance for static closing prices
+            currentTTL = 3600000; // 1 hour
+        }
+
+        // Check Cache with Dynamic TTL
         const cached = this.cache.get(symbol);
-        if (cached && Date.now() - cached.timestamp < this.CACHE_TTL) {
-            console.log(`[STOCK_API] Cache HIT for ${symbol} @ $${cached.data.price.toFixed(2)}`);
+        if (cached && Date.now() - cached.timestamp < currentTTL) {
+            // console.log(`[STOCK_API] Cache HIT for ${symbol} @ $${cached.data.price.toFixed(2)} (TTL: ${currentTTL}ms)`);
             return cached.data;
         }
-        console.log(`[STOCK_API] Cache MISS for ${symbol}, fetching new data...`);
+
+        if (!isCrypto && !this.isMarketOpen()) {
+            console.log(`[STOCK_API] Fetching CLOSING PRICE for ${symbol} (will cache for 1 hour)...`);
+        } else {
+            // Only log misses for active market/crypto to reduce noise
+            // console.log(`[STOCK_API] Cache MISS for ${symbol}, fetching new data...`);
+        }
 
         try {
             // Check if symbol is valid (in our lists)

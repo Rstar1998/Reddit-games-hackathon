@@ -36,6 +36,15 @@ export class ApiClient {
         const res = await fetch('/api/history');
         return res.json();
     }
+
+    async syncUsername(username: string): Promise<{ success: boolean }> {
+        const res = await fetch('/api/username/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username }),
+        });
+        return res.json();
+    }
 }
 
 export const api = new ApiClient();

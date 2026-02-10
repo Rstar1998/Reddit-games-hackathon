@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { api } from '../api';
+import { context } from '@devvit/web/client';
 
 interface LeaderboardEntry {
     userId: string;
@@ -124,8 +125,15 @@ export const Leaderboard = ({ onClose, currentUserId }: { onClose: () => void; c
                                         <div key={index} className="bg-slate-950 p-3 rounded-xl border border-slate-800 flex justify-between items-center shadow-sm">
                                             <div>
                                                 <div className="font-bold text-white flex gap-2 items-center">
-                                                    <span className={`text-xs font-black px-1.5 py-0.5 rounded uppercase ${entry.type === 'buy' ? 'bg-green-900/30 text-green-400 border border-green-900' : 'bg-red-900/30 text-red-400 border border-red-900'}`}>
+                                                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded border uppercase ${entry.type === 'buy' ? 'bg-green-900/30 text-green-400 border-green-900' : 'bg-red-900/30 text-red-400 border-red-900'}`}>
                                                         {entry.type}
+                                                    </span>
+                                                    {/* Asset Type Badge */}
+                                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${entry.ticker.includes('-USD')
+                                                        ? 'bg-yellow-900/30 text-yellow-500 border-yellow-700/50'
+                                                        : 'bg-blue-900/30 text-blue-400 border-blue-700/50'
+                                                        }`}>
+                                                        {entry.ticker.includes('-USD') ? 'CRYPTO' : 'STOCK'}
                                                     </span>
                                                     <span>{entry.amount.toLocaleString(undefined, { maximumFractionDigits: 8 })} <span className="text-slate-400">{entry.ticker}</span></span>
                                                 </div>
@@ -169,7 +177,10 @@ export const Leaderboard = ({ onClose, currentUserId }: { onClose: () => void; c
                                             </div>
                                             <div>
                                                 <div className="text-white font-bold text-sm md:text-base hover:text-yellow-400 transition-colors">
-                                                    {entry.username.replace('user:', '').replace(':portfolio', '')}
+                                                    {/* Override username for current user if available in context */}
+                                                    {(entry.userId === currentUserId && context.username)
+                                                        ? context.username
+                                                        : entry.username.replace('user:', '').replace(':portfolio', '')}
                                                 </div>
                                                 {index === 0 && <div className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider">Top Trader</div>}
                                             </div>

@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { StockData, Portfolio } from '../../shared/types/models';
 import { Leaderboard } from './Leaderboard';
+import { context } from '@devvit/web/client';
 
 // Price Display Component with Flash Animation
 const PriceDisplay = ({ price }: { price: number }) => {
@@ -98,17 +99,21 @@ export const App = () => {
     }
   };
 
-  // Update selectedStock when stocks array changes (keeps modal prices fresh)
+  // Update selectedStock when stocks array changes
   useEffect(() => {
-    console.log('[FRONTEND] stocks state changed, length:', stocks.length);
     if (selectedStock && stocks.length > 0) {
       const updatedStock = stocks.find(s => s.symbol === selectedStock.symbol);
-      if (updatedStock) {
-        console.log('[FRONTEND] Updating selectedStock:', updatedStock.symbol, '@', updatedStock.price);
-        setSelectedStock(updatedStock);
-      }
+      if (updatedStock) setSelectedStock(updatedStock);
     }
   }, [stocks]);
+
+  // Sync username from client context if available (fix for leaderboard display)
+  useEffect(() => {
+    if (context.username) {
+      console.log('[FRONTEND] Syncing username:', context.username);
+      api.syncUsername(context.username).catch(console.error);
+    }
+  }, []);
 
   if (loading && !portfolio) return <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">🚀 Loading WSB Terminal...</div>;
 
@@ -368,6 +373,13 @@ export const App = () => {
                 >
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
+                      {/* Asset Type Badge */}
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${stock.symbol.includes('-USD')
+                        ? 'bg-yellow-900/30 text-yellow-500 border-yellow-700/50'
+                        : 'bg-blue-900/30 text-blue-400 border-blue-700/50'
+                        }`}>
+                        {stock.symbol.includes('-USD') ? 'CRYPTO' : 'STOCK'}
+                      </span>
                       <div className="font-bold text-white text-base md:text-sm">{stock.symbol}</div>
                       {/* Trend Indicator */}
                       <span className={`text-xs ${stock.changePercent >= 2 ? 'text-green-400' :

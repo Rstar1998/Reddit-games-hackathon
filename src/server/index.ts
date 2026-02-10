@@ -41,9 +41,10 @@ router.get<{ postId: string }, InitResponse | { status: string; message: string 
 
       // Store username if available, otherwise use userId as fallback
       if (context.userId) {
-        const usernameToStore = username || context.userId;
+        // user: prefix is often stripped by frontend, but let's store clean username if possible
+        const usernameToStore = username || context.username || context.userId;
         await gameLogic.setUsername(context.userId, usernameToStore);
-        console.log('[DEVVIT] Stored username:', usernameToStore, 'for userId:', context.userId);
+        console.log('[DEVVIT] Init - Stored username:', usernameToStore, 'for userId:', context.userId);
       }
 
       res.json({
@@ -118,6 +119,36 @@ router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
       message: 'Failed to create post',
     });
   }
+});
+
+// DEBUG: Endpoint to manually fix username if needed
+router.post('/api/debug/set-username', async (req, res) => {
+  const { userId } = context;
+  const { username } = req.body as { username: string };
+
+  if (!userId || !username) {
+    res.status(400).json({ error: 'Missing userId or username' });
+    return;
+  }
+
+  await gameLogic.setUsername(userId, username);
+  console.log('[DEBUG] Manually set username:', username, 'for userId:', userId);
+  res.json({ success: true, username });
+});
+
+// Endpoint to sync username from client context
+router.post('/api/username/sync', async (req, res) => {
+  const { userId } = context;
+  const { username } = req.body as { username: string };
+
+  if (!userId || !username) {
+    res.status(400).json({ error: 'Missing userId or username' });
+    return;
+  }
+
+  await gameLogic.setUsername(userId, username);
+  console.log('[DEVVIT] Synced username from client:', username, 'for userId:', userId);
+  res.json({ success: true });
 });
 
 router.get('/api/stocks', async (req, res) => {

@@ -48,15 +48,15 @@ export const Splash = () => {
         <div className="grid grid-cols-2 gap-3 w-full">
           <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-3 text-center">
             <div className="text-2xl mb-1">📊</div>
-            <div className="text-xs text-slate-400">Real-time Prices</div>
+            <div className="text-xs text-slate-400">Live Market Data</div>
           </div>
           <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-3 text-center">
             <div className="text-2xl mb-1">🏆</div>
             <div className="text-xs text-slate-400">Daily Leaderboard</div>
           </div>
           <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-3 text-center">
-            <div className="text-2xl mb-1">💰</div>
-            <div className="text-xs text-slate-400">Stocks & Crypto</div>
+            <div className="text-2xl mb-1">🪙</div>
+            <div className="text-xs text-slate-400">Crypto 24/7</div>
           </div>
           <div className="bg-slate-900/30 border border-slate-800 rounded-lg p-3 text-center">
             <div className="text-2xl mb-1">⚡</div>
@@ -74,8 +74,8 @@ export const Splash = () => {
 
         {/* Quick Info */}
         <div className="text-center text-xs text-slate-500 space-y-1">
-          <p>• Daily reset at market open</p>
-          <p>• Stocks on weekdays, Crypto on weekends</p>
+          <p>• Daily reset at market open (9:30 AM ET)</p>
+          <p>• 24/7 Crypto • Stocks (9:30-4:00 ET)</p>
           <p>• Compete with other traders!</p>
         </div>
 
