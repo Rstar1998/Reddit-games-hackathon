@@ -7,7 +7,7 @@ import { createRoot } from 'react-dom/client';
 
 export const Splash = () => {
   return (
-    <div className="flex relative flex-col justify-center items-center min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 p-6">
+    <div className="fixed inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 text-4xl opacity-20 animate-pulse-slow">🚀</div>
@@ -17,9 +17,9 @@ export const Splash = () => {
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col items-center gap-6 max-w-md animate-fade-in">
+      <div className="relative z-10 flex flex-col items-center gap-6 max-w-md mx-auto animate-fade-in py-8 px-6 min-h-full">
         {/* Logo/Icon */}
-        <div className="relative">
+        <div className="relative mt-4">
           <div className="text-8xl mb-4 animate-bounce" style={{ animationDuration: '2s' }}>🚀</div>
           <div className="absolute -top-2 -right-2 text-3xl">💎</div>
         </div>
@@ -78,31 +78,31 @@ export const Splash = () => {
           <p>• Stocks on weekdays, Crypto on weekends</p>
           <p>• Compete with other traders!</p>
         </div>
-      </div>
 
-      {/* Footer */}
-      <footer className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3 text-xs text-slate-600">
-        <button
-          className="cursor-pointer hover:text-slate-400 transition-colors"
-          onClick={() => navigateTo('https://developers.reddit.com/docs')}
-        >
-          Docs
-        </button>
-        <span className="text-slate-700">|</span>
-        <button
-          className="cursor-pointer hover:text-slate-400 transition-colors"
-          onClick={() => navigateTo('https://www.reddit.com/r/Devvit')}
-        >
-          r/Devvit
-        </button>
-        <span className="text-slate-700">|</span>
-        <button
-          className="cursor-pointer hover:text-slate-400 transition-colors"
-          onClick={() => navigateTo('https://discord.com/invite/R7yu2wh9Qz')}
-        >
-          Discord
-        </button>
-      </footer>
+        {/* Footer - moved inside scrollable area */}
+        <footer className="flex gap-3 text-xs text-slate-600 mt-8 mb-4">
+          <button
+            className="cursor-pointer hover:text-slate-400 transition-colors"
+            onClick={() => navigateTo('https://developers.reddit.com/docs')}
+          >
+            Docs
+          </button>
+          <span className="text-slate-700">|</span>
+          <button
+            className="cursor-pointer hover:text-slate-400 transition-colors"
+            onClick={() => navigateTo('https://www.reddit.com/r/Devvit')}
+          >
+            r/Devvit
+          </button>
+          <span className="text-slate-700">|</span>
+          <button
+            className="cursor-pointer hover:text-slate-400 transition-colors"
+            onClick={() => navigateTo('https://discord.com/invite/R7yu2wh9Qz')}
+          >
+            Discord
+          </button>
+        </footer>
+      </div>
     </div>
   );
 };
