@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { api } from '../api';
 import { StockData, Portfolio } from '../../shared/types/models';
 import { Leaderboard } from './Leaderboard';
-import { context } from '@devvit/web/client';
+import { ADMIN_USERNAMES } from '../../shared/config';
 
 // Price Display Component with Flash Animation
 const PriceDisplay = ({ price }: { price: number }) => {
@@ -33,6 +33,78 @@ const PriceDisplay = ({ price }: { price: number }) => {
   );
 };
 
+
+
+// Debug Controls Component
+const DebugControls = ({ onRefresh }: { onRefresh: () => void }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const handleTimeTravel = async () => {
+    setMsg('⏳ Traveling back in time...');
+    try {
+      const res = await api.debugTimeTravel();
+      setMsg(res.success ? '✅ Time Travel Successful! Refreshing...' : '❌ Failed');
+      if (res.success) {
+        setTimeout(onRefresh, 1000); // Refresh to see reset
+      }
+    } catch (e) {
+      setMsg('❌ Error');
+    }
+  };
+
+  const handleTriggerScheduler = async () => {
+    setMsg('⏳ Triggering scheduler...');
+    try {
+      const res = await api.debugTriggerScheduler();
+      setMsg(res.success ? '✅ Scheduler Triggered!' : '❌ Failed');
+    } catch (e) {
+      setMsg('❌ Error');
+    }
+  };
+
+  if (!isOpen) {
+    return (
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-4 left-4 bg-slate-800 text-slate-500 p-2 rounded-full hover:text-white transition-colors text-xs"
+        title="Open Debug Tools"
+      >
+        🛠️
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-4 left-4 bg-slate-900 border border-slate-700 p-4 rounded-lg shadow-xl z-50 w-64">
+      <div className="flex justify-between items-center mb-3">
+        <h3 className="font-bold text-yellow-500 text-sm">🛠️ Debug Tools</h3>
+        <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white">×</button>
+      </div>
+
+      <div className="space-y-2">
+        <button
+          onClick={handleTimeTravel}
+          className="w-full bg-blue-900/50 hover:bg-blue-800 text-blue-200 text-xs py-2 px-3 rounded border border-blue-800 transition-colors"
+        >
+          ⏪ Simulate "Yesterday"
+          <span className="block text-[10px] text-blue-400 mt-1">Forces portfolio reset on next refresh</span>
+        </button>
+
+        <button
+          onClick={handleTriggerScheduler}
+          className="w-full bg-red-900/50 hover:bg-red-800 text-red-200 text-xs py-2 px-3 rounded border border-red-800 transition-colors"
+        >
+          🚨 Trigger Daily Reset
+          <span className="block text-[10px] text-red-400 mt-1">Archives winners & clears leaderboard</span>
+        </button>
+      </div>
+
+      {msg && <div className="mt-3 text-xs text-center text-white bg-slate-800 p-1 rounded">{msg}</div>}
+    </div>
+  );
+};
+
 export const App = () => {
   const [stocks, setStocks] = useState<StockData[]>([]);
   // ... rest of App component ...
@@ -40,12 +112,16 @@ export const App = () => {
   const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
   const [loading, setLoading] = useState(true);
   const [totalValue, setTotalValue] = useState(0);
+
   const [userId, setUserId] = useState<string>('');
+  const [username, setUsername] = useState<string>(''); // Robust username from server
   const [selectedStock, setSelectedStock] = useState<StockData | null>(null);
   const [tradeAmount, setTradeAmount] = useState(1);
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [tradeMessage, setTradeMessage] = useState('');
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+
+
 
   const refreshData = async () => {
     try {
@@ -66,7 +142,22 @@ export const App = () => {
   };
 
   useEffect(() => {
-    refreshData();
+    const initGame = async () => {
+      try {
+        // Fetch robust username from server init
+        const initRes = await api.getInit();
+        if (initRes.username) {
+          setUsername(initRes.username);
+          console.log('[FRONTEND] Init complete. Username:', initRes.username);
+        }
+        await refreshData();
+      } catch (e) {
+        console.error('Init failed', e);
+        // Fallback to refresh if init fails
+        await refreshData();
+      }
+    };
+    initGame();
     const interval = setInterval(refreshData, 2000); // Poll every 2s
     return () => clearInterval(interval);
   }, []);
@@ -107,13 +198,6 @@ export const App = () => {
     }
   }, [stocks]);
 
-  // Sync username from client context if available (fix for leaderboard display)
-  useEffect(() => {
-    if (context.username) {
-      console.log('[FRONTEND] Syncing username:', context.username);
-      api.syncUsername(context.username).catch(console.error);
-    }
-  }, []);
 
   if (loading && !portfolio) return <div className="min-h-screen bg-slate-900 text-white flex items-center justify-center">🚀 Loading WSB Terminal...</div>;
 
@@ -133,7 +217,7 @@ export const App = () => {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans md:font-mono p-2 md:p-6 pb-20">
-      {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} currentUserId={userId} />}
+      {showLeaderboard && <Leaderboard onClose={() => setShowLeaderboard(false)} currentUserId={userId} currentUsername={username} />}
 
       {/* Header */}
       <header className="mb-6 border-b border-slate-800 pb-4 sticky top-0 bg-slate-950/95 backdrop-blur z-40">
@@ -411,6 +495,9 @@ export const App = () => {
           </div>
         </div>
       </div>
+      {(username && ADMIN_USERNAMES.includes(username)) && (
+        <DebugControls onRefresh={refreshData} />
+      )}
     </div>
   );
 };

@@ -16,7 +16,7 @@ interface HistoryEntry {
     timestamp: number;
 }
 
-export const Leaderboard = ({ onClose, currentUserId }: { onClose: () => void; currentUserId?: string }) => {
+export const Leaderboard = ({ onClose, currentUserId, currentUsername }: { onClose: () => void; currentUserId?: string, currentUsername?: string }) => {
     const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedUser, setSelectedUser] = useState<string | null>(null); // Username for display
@@ -49,8 +49,17 @@ export const Leaderboard = ({ onClose, currentUserId }: { onClose: () => void; c
         return () => clearInterval(interval);
     }, [showPrevious]);
 
+    const formatUsername = (userId: string, rawUsername: string) => {
+        // Use the robust currentUsername prop if available, otherwise context, otherwise fallback
+        if (userId === currentUserId && (currentUsername || context.username)) {
+            return currentUsername || context.username || '';
+        }
+        return rawUsername.replace('user:', '').replace(':portfolio', '');
+    };
+
     const handleUserClick = async (userId: string, username: string) => {
-        setSelectedUser(username);
+        const displayUsername = formatUsername(userId, username);
+        setSelectedUser(displayUsername);
         setLoadingHistory(true);
         try {
             // Use getMyHistory if viewing own history, otherwise getUserHistory
@@ -177,10 +186,7 @@ export const Leaderboard = ({ onClose, currentUserId }: { onClose: () => void; c
                                             </div>
                                             <div>
                                                 <div className="text-white font-bold text-sm md:text-base hover:text-yellow-400 transition-colors">
-                                                    {/* Override username for current user if available in context */}
-                                                    {(entry.userId === currentUserId && context.username)
-                                                        ? context.username
-                                                        : entry.username.replace('user:', '').replace(':portfolio', '')}
+                                                    {formatUsername(entry.userId, entry.username)}
                                                 </div>
                                                 {index === 0 && <div className="text-[10px] text-yellow-500 font-bold uppercase tracking-wider">Top Trader</div>}
                                             </div>

@@ -24,6 +24,17 @@ export class GameLogic {
         return `user:${userId}:portfolio`;
     }
 
+    private getCurrentDateET(): string {
+        // en-CA locale returns YYYY-MM-DD format
+        const formatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/New_York',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+        });
+        return formatter.format(new Date());
+    }
+
     /**
      * Get user portfolio or initialize if not exists
      */
@@ -33,12 +44,14 @@ export class GameLogic {
 
         let portfolio: Portfolio;
 
+        const today = this.getCurrentDateET();
+
         if (!data) {
             portfolio = {
                 cash: INITIAL_CASH,
                 assets: {},
                 lastUpdated: Date.now(),
-                lastResetDate: new Date().toISOString().split('T')[0]
+                lastResetDate: today
             };
             await this.redis.set(key, JSON.stringify(portfolio));
         } else {
@@ -46,15 +59,16 @@ export class GameLogic {
         }
 
         // Check for Daily Reset
-        const today = new Date().toISOString().split('T')[0];
         // Reset if date changed AND it's a weekday (Mon=1 ... Fri=5)
-        const dayOfWeek = new Date().getDay();
+        // We need day of week in ET too.
+        const etDateString = new Date().toLocaleString("en-US", { timeZone: "America/New_York" });
+        const etDate = new Date(etDateString);
+        const dayOfWeek = etDate.getDay();
         const isWeekday = dayOfWeek >= 1 && dayOfWeek <= 5;
 
         if (portfolio.lastResetDate !== today && isWeekday) {
             portfolio.cash = INITIAL_CASH;
-            portfolio.assets = {}; // Clear assets on reset? User said "previous cash reset and he/she gets 10000 dollars". 
-            // Assets clearing implied for "Daily Challenge" style, otherwise gaining cash + keeping assets = infinite money glitch.
+            portfolio.assets = {};
             portfolio.lastResetDate = today;
             portfolio.lastUpdated = Date.now();
             await this.redis.set(key, JSON.stringify(portfolio));
@@ -218,18 +232,32 @@ export class GameLogic {
     /**
      * Save previous day's winners (top 10) - should be called at 11:59 PM ET
      */
+    /**
+     * Save previous day's winners (top 10) - should be called at 12:01 AM ET
+     */
     async savePreviousDayWinners(): Promise<void> {
         try {
-            const yesterday = new Date();
-            yesterday.setDate(yesterday.getDate() - 1);
-            const dateKey = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD
+            // Calculate "yesterday" in ET
+            // If we run at 12:01 AM ET, subtracting 12 hours safely puts us in the previous day
+            const now = new Date();
+            const past = new Date(now.getTime() - 12 * 60 * 60 * 1000);
+
+            const formatter = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'America/New_York',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit'
+            });
+            const dateKey = formatter.format(past);
 
             // Get current top 10
             const winners = await this.getLeaderboard(10);
 
-            // Save to Redis with date key
-            await this.redis.set(`leaderboard:history:${dateKey}`, JSON.stringify(winners));
-            console.log(`[GAME_LOGIC] Saved previous day winners for ${dateKey}`);
+            if (winners.length > 0) {
+                // Save to Redis with date key
+                await this.redis.set(`leaderboard:history:${dateKey}`, JSON.stringify(winners));
+                console.log(`[GAME_LOGIC] Saved previous day winners for ${dateKey}`);
+            }
         } catch (e) {
             console.error('Failed to save previous day winners', e);
         }

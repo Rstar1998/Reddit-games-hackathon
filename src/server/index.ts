@@ -4,6 +4,7 @@ import { redis, reddit, createServer, context, getServerPort } from '@devvit/web
 import { createPost } from './core/post';
 import { stockService } from './services/stock_api';
 import { GameLogic } from './services/game_logic';
+import { ADMIN_USERNAMES } from '../shared/config';
 
 const app = express();
 const gameLogic = new GameLogic(redis);
@@ -123,8 +124,14 @@ router.post('/internal/on-app-install', async (_req, res): Promise<void> => {
 
 // DEBUG: Endpoint to manually fix username if needed
 router.post('/api/debug/set-username', async (req, res) => {
-  const { userId } = context;
+  const { userId, username: contextUsername } = context;
   const { username } = req.body as { username: string };
+
+  const effectiveUsername = contextUsername || userId || '';
+  if (!ADMIN_USERNAMES.includes(effectiveUsername) && !ADMIN_USERNAMES.includes(userId || '')) {
+    res.status(403).json({ error: 'Forbidden: Admin access only' });
+    return;
+  }
 
   if (!userId || !username) {
     res.status(400).json({ error: 'Missing userId or username' });
@@ -149,6 +156,67 @@ router.post('/api/username/sync', async (req, res) => {
   await gameLogic.setUsername(userId, username);
   console.log('[DEVVIT] Synced username from client:', username, 'for userId:', userId);
   res.json({ success: true });
+});
+
+// DEBUG: Set last reset date to YESTERDAY (Time Travel)
+router.post('/api/debug/time-travel', async (req, res) => {
+  const { userId, username } = context;
+
+  const effectiveUsername = username || userId || '';
+  if (!userId || (!ADMIN_USERNAMES.includes(effectiveUsername) && !ADMIN_USERNAMES.includes(userId))) {
+    return res.status(403).json({ error: 'Forbidden: Admin access only' });
+  }
+
+  // Force portfolio lastResetDate to be yesterday
+  const portfolio = await gameLogic.getPortfolio(userId);
+
+  // Calculate "yesterday" in ET
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const now = new Date();
+  const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  portfolio.lastResetDate = formatter.format(yesterday);
+
+  // Save state - simulating "yesterday's" state
+  await redis.set(`user:${userId}:portfolio`, JSON.stringify(portfolio));
+
+  console.log(`[DEBUG] Time Traveled user ${userId} back to ${portfolio.lastResetDate}`);
+  res.json({ success: true, message: 'Welcome to yesterday! Refresh the app to trigger a daily reset.' });
+});
+
+// DEBUG: Trigger Scheduler Logic Manually
+router.post('/api/debug/trigger-scheduler', async (req, res) => {
+  const { userId, username } = context;
+
+  const effectiveUsername = username || userId || '';
+  if (!ADMIN_USERNAMES.includes(effectiveUsername) && !ADMIN_USERNAMES.includes(userId || '')) {
+    return res.status(403).json({ error: 'Forbidden: Admin access only' });
+  }
+
+  console.log('[DEBUG] Manually triggering Daily Reset Scheduler...');
+
+  // Save current leaderboard as "yesterday's winners"
+  await gameLogic.savePreviousDayWinners();
+
+  // Clear current leaderboard
+  await redis.del('leaderboard');
+
+  // Mark system as reset for today (optional, but good for consistency)
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/New_York',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const todayStr = formatter.format(new Date());
+  await redis.set('system:last_daily_reset', todayStr);
+
+  console.log('[DEBUG] Daily Reset Triggered Successfully');
+  res.json({ success: true, message: 'Daily Reset Triggered! Leaderboard archived and cleared.' });
 });
 
 router.get('/api/stocks', async (req, res) => {
@@ -299,4 +367,45 @@ const port = getServerPort();
 
 const server = createServer(app);
 server.on('error', (err) => console.error(`server error; ${err.stack}`));
-server.listen(port);
+server.listen(port, () => {
+  console.log(`[SERVER] Listening on port: ${port}`);
+});
+
+// Internal Scheduler for Daily Resets (12:01 AM ET)
+setInterval(async () => {
+  try {
+    // Get current time in ET
+    const formatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/New_York',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: 'numeric',
+      minute: 'numeric',
+      hour12: false
+    });
+
+    // Format: "YYYY-MM-DD, HH:MM"
+    const parts = formatter.formatToParts(new Date());
+    const getPart = (type: string) => parts.find(p => p.type === type)?.value;
+
+    const hour = parseInt(getPart('hour') || '0');
+    const minute = parseInt(getPart('minute') || '0');
+    const todayStr = `${getPart('year')}-${getPart('month')}-${getPart('day')}`;
+
+    // Target: 00:01 (12:01 AM)
+    if (hour === 0 && minute === 1) {
+      const lastReset = await redis.get('system:last_daily_reset');
+
+      if (lastReset !== todayStr) {
+        console.log(`[SCHEDULER] Triggering Daily Reset for ${todayStr}...`);
+        await gameLogic.savePreviousDayWinners();
+        await redis.del('leaderboard');
+        await redis.set('system:last_daily_reset', todayStr);
+        console.log('[SCHEDULER] Daily Reset Complete.');
+      }
+    }
+  } catch (e) {
+    console.error('[SCHEDULER] Error:', e);
+  }
+}, 60000); // Check every minute
