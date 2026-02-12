@@ -359,6 +359,11 @@ router.get('/api/leaderboard/previous', async (req, res) => {
   res.json({ leaderboard: previousWinners });
 });
 
+router.get('/api/leaderboard/history', async (_req, res) => {
+  const history = await gameLogic.getAllHistoricalWinners();
+  res.json({ history });
+});
+
 // Use router middleware
 app.use(router);
 

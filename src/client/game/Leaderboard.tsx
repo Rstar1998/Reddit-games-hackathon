@@ -23,15 +23,16 @@ export const Leaderboard = ({ onClose, currentUserId, currentUsername }: { onClo
     const [history, setHistory] = useState<HistoryEntry[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
     const [showPrevious, setShowPrevious] = useState(false); // Toggle for previous winners
+    const [historicalWinners, setHistoricalWinners] = useState<{ date: string; winners: LeaderboardEntry[] }[]>([]);
 
     useEffect(() => {
         const fetchLeaderboard = () => {
             if (showPrevious) {
-                // Fetch previous day winners
-                fetch('/api/leaderboard/previous')
+                // Fetch full history
+                fetch('/api/leaderboard/history')
                     .then(res => res.json())
                     .then(data => {
-                        setEntries(data.leaderboard);
+                        setHistoricalWinners(data.history);
                         setLoading(false);
                     })
                     .catch(console.error);
@@ -164,7 +165,53 @@ export const Leaderboard = ({ onClose, currentUserId, currentUsername }: { onClo
                             <div className="flex flex-col items-center justify-center h-48 text-slate-500 animate-pulse">
                                 <div>Loading rankings...</div>
                             </div>
+                        ) : showPrevious ? (
+                            /* Previous Winners View */
+                            <div className="space-y-4">
+                                {historicalWinners.length === 0 ? (
+                                    <div className="text-center text-slate-500 py-12">No previous winners found.</div>
+                                ) : (
+                                    historicalWinners.map((dayRecord: { date: string; winners: LeaderboardEntry[] }, dayIndex: number) => (
+                                        <div key={dayIndex} className="bg-slate-950 rounded-xl border border-slate-800 shadow-sm">
+                                            <div className="p-3 border-b border-slate-800">
+                                                <h3 className="text-sm font-bold text-slate-300">{dayRecord.date} Winners</h3>
+                                            </div>
+                                            <div className="p-2 space-y-1">
+                                                {dayRecord.winners.slice(0, 5).map((entry: LeaderboardEntry, index: number) => ( // Show top 5
+                                                    <div
+                                                        key={index}
+                                                        onClick={() => handleUserClick(entry.userId, entry.username)}
+                                                        className="flex justify-between items-center p-2 rounded-lg cursor-pointer hover:bg-slate-800 transition-all group"
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`font-bold w-6 h-6 flex items-center justify-center rounded text-xs ${index === 0 ? 'bg-yellow-500 text-black' :
+                                                                index === 1 ? 'bg-slate-400 text-black' :
+                                                                    index === 2 ? 'bg-orange-700 text-white' :
+                                                                        'bg-slate-800 text-slate-500'
+                                                                }`}>
+                                                                {index + 1}
+                                                            </div>
+                                                            <div className="text-slate-300 font-medium text-sm group-hover:text-yellow-400 transition-colors">
+                                                                {formatUsername(entry.userId, entry.username)}
+                                                            </div>
+                                                        </div>
+                                                        <div className="font-mono font-bold text-green-500 text-sm">
+                                                            ${entry.value.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                                {dayRecord.winners.length > 5 && (
+                                                    <div className="text-center text-[10px] text-slate-600 py-1 italic">
+                                                        + {dayRecord.winners.length - 5} more winners
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
                         ) : (
+                            /* Current Leaderboard View */
                             <div className="space-y-2">
                                 {entries.map((entry, index) => (
                                     <div

@@ -256,10 +256,42 @@ export class GameLogic {
             if (winners.length > 0) {
                 // Save to Redis with date key
                 await this.redis.set(`leaderboard:history:${dateKey}`, JSON.stringify(winners));
+                // Add date to Sorted Set of dates with history (Score = Timestamp)
+                await this.redis.zAdd('leaderboard:history:dates', { member: dateKey, score: past.getTime() });
                 console.log(`[GAME_LOGIC] Saved previous day winners for ${dateKey}`);
             }
         } catch (e) {
             console.error('Failed to save previous day winners', e);
+        }
+    }
+
+    /**
+     * Get all historical winners
+     */
+    async getAllHistoricalWinners(): Promise<{ date: string; winners: { userId: string; username: string; value: number }[] }[]> {
+        try {
+            // Get all dates sorted by score (timestamp) descending
+            const dates = await this.redis.zRange('leaderboard:history:dates', 0, -1, { reverse: true });
+
+            if (!dates || dates.length === 0) {
+                return [];
+            }
+
+            // Fetch history for each date
+            const history = await Promise.all(dates.map(async (date: any) => {
+                const dateStr = typeof date === 'string' ? date : date.member;
+                const data = await this.redis.get(`leaderboard:history:${dateStr}`);
+                return {
+                    date: dateStr,
+                    winners: data ? JSON.parse(data) : []
+                };
+            }));
+
+            // Filter out empty entries if any
+            return history.filter(h => h.winners.length > 0);
+        } catch (e) {
+            console.error('Failed to get all historical winners', e);
+            return [];
         }
     }
 
